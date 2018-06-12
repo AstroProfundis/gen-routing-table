@@ -3,13 +3,10 @@
 # Generate OSPF routing table configuration for bird
 
 import argparse
-import base64
 import datetime
-import json
 import os
-import re
 
-from aggregate6 import aggregate
+from subprocess import Popen, PIPE
 try:
     # For Python 2
     import urllib2 as urlreq
@@ -25,11 +22,6 @@ as_list_url = 'ftp://ftp.arin.net/info/asn.txt'
 ip_list_file = 'data/delegated-apnic-latest'
 as_list_file = 'data/asn.txt'
 routes_file = 'data/oix-full-snapshot-latest.dat'
-# match IP address format
-ip_pattern = re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
-
-# paths for files
-outfile = 'data/ospf.conf'
 
 def read_file(filename):
     data = None
@@ -67,8 +59,14 @@ def parse_opts():
                         help='AS Number to include, only the numeric part needed.')
     parser.add_argument('--country', action='append', default=None,
                         help='Country code, to include a whole country/region\'s network')
+    parser.add_argument('--exclude', action='append', default=None,
+                        help='Country code to exclude from result, this will overwite other filters.')
     parser.add_argument('--gateway', action='store', default=None,
                         help='Default gateway of internet access.')
+    parser.add_argument('--table-name', action='store', default='generated_table',
+                        help='Routing table name of generated routes.')
+    parser.add_argument('-o', '--output', action='store', default='routes.conf',
+                        help='Output file name of generated config.')
     return parser.parse_args()
 
 def get_ip_data():
@@ -115,12 +113,10 @@ def get_as_data():
             result[name] = [asn]
     return result
 
-def group_networks(net_set):
-    return aggregate(list(net_set))
-
 def read_routing_table(as_list):
     result = {}
     with open(routes_file, 'r') as f:
+        # read line by line as this file is very large
         for tuple_line in enumerate(f):
             line = tuple_line[1]
             if not line or not str.startswith(line, '*'):
@@ -144,8 +140,7 @@ def read_routing_table(as_list):
             except KeyError:
                 result[asn] = set()
                 result[asn].add(inet)
-    for asn, nets in result.items():
-        result[asn] = group_networks(nets)
+    f.close()
     return result
 
 def find_asn_by_name(name_list):
@@ -157,21 +152,46 @@ def find_asn_by_name(name_list):
                 result += as_info
     return result
 
-def find_asn_by_country(country_list):
+def find_asn_by_country(country_list, exclude_list):
     result = []
+    exclude = []
     ip_data = get_ip_data()
-    for ccode, as_info in ip_data['asn'].items():
-        for code in country_list:
-            if str.upper(code) in str.upper(ccode):
+
+    if not country_list:
+        country_list = []
+    if not exclude_list:
+        exclude_list = []
+
+    for code, as_info in ip_data['asn'].items():
+        for _code in exclude_list:
+            if str.upper(_code) in str.upper(code):
+                for as_item in as_info:
+                    exclude.append(as_item[0])
+        for _code in country_list:
+            if str.upper(_code) in str.upper(code):
                 for as_item in as_info:
                     result.append(as_item[0])
-    return result
+    return result, exclude
 
 
-def gen_routing_items(args):
-    as_name = args.name
-    as_num = args.asn
-    country = args.country
+def gen_routing_items(args, net_list):
+    table_name = args.table_name
+    if args.gateway:
+        gateway = args.gateway
+    else:
+        raise OSError('No default gateway specified!')
+    config_template = '''# Generated at: %s
+protocol static {
+  table %s;
+%s
+}
+'''
+    route_template = '  route %s via %s;'
+
+    route_list = []
+    for net in net_list:
+        route_list.append(route_template % (net, gateway))
+    return config_template % (datetime.datetime.now(), table_name, '\n'.join(route_list))
 
 
 if __name__ == '__main__':
@@ -180,11 +200,23 @@ if __name__ == '__main__':
 
     if args.name:
         as_list += find_asn_by_name(args.name)
-    if args.country:
-        as_list += find_asn_by_country(args.country)
+    if args.country or args.exclude:
+        as_list_by_country, as_exclude = find_asn_by_country(args.country, args.exclude)
+        as_list += as_list_by_country
+
+    # filter excludes
+    for asn in as_exclude:
+        if asn in as_list:
+            as_list.remove(asn)
     # remove duplicates
     as_list = list(set(as_list))
 
+    detailed_nets = []
     for asn, nets in read_routing_table(as_list).items():
-        for net in nets:
-            print(net)
+        detailed_nets += nets
+
+    p = Popen(['aggregate'], stdin=PIPE, stdout=PIPE)
+    stdout, stderr = p.communicate('\n'.join(detailed_nets).encode('utf-8'))
+    if stderr and stderr != '':
+        print(stderr)
+    write_file(args.output, data=gen_routing_items(args, stdout.decode('utf-8').split('\n')).encode('utf-8'))
