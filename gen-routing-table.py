@@ -7,21 +7,12 @@ import datetime
 import os
 
 from subprocess import Popen, PIPE
-try:
-    # For Python 2
-    import urllib2 as urlreq
-    from urllib2 import HTTPError, URLError
-except ImportError:
-    # For Python 3
-    import urllib.request as urlreq
-    from urllib.error import HTTPError, URLError
 
-# the url of raw data
-ip_list_url = 'https://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest'
-as_list_url = 'ftp://ftp.arin.net/info/asn.txt'
+# the location of raw data
 ip_list_file = 'data/delegated-apnic-latest'
 as_list_file = 'data/asn.txt'
 routes_file = 'data/oix-full-snapshot-latest.dat'
+
 
 def read_file(filename):
     data = None
@@ -29,6 +20,7 @@ def read_file(filename):
         data = f.read()
     f.close()
     return data
+
 
 def write_file(filename, data=None):
     if not data:
@@ -40,19 +32,10 @@ def write_file(filename, data=None):
             f.write(data)
     f.close()
 
-def read_url(url):
-    if not url or url == '':
-        return
-    try:
-        response = urlreq.urlopen(url)
-        return response.read().decode('utf-8')
-    except HTTPError as err:
-        return err.read()
-    except URLError as err:
-        return None
 
 def parse_opts():
-    parser = argparse.ArgumentParser(description='Generate OSPF routing table for bird.')
+    parser = argparse.ArgumentParser(
+        description='Generate static routing table for bird.')
     parser.add_argument('--name', action='append', default=None,
                         help="Name of AS region, partially matched in AS description.")
     parser.add_argument('--asn', action='append', default=None,
@@ -69,9 +52,9 @@ def parse_opts():
                         help='Output file name of generated config.')
     return parser.parse_args()
 
+
 def get_ip_data():
     result = {}
-    #raw_ip = read_url(ip_list_url)
     raw_ip = read_file(ip_list_file)
     for line in raw_ip.split('\n'):
         if not line or not str.startswith(line, 'apnic'):
@@ -79,8 +62,8 @@ def get_ip_data():
         _tmp = line.split('|')
         if _tmp[1] == '*' or _tmp[3] == '*':
             continue
-        _code = _tmp[1] # country code
-        _type = _tmp[2] # record type
+        _code = _tmp[1]  # country code
+        _type = _tmp[2]  # record type
         if _type != 'asn':
             # skip ip blocks, as we don't need them now, but the looking table
             # structure is keeped in case we'll use it in the future
@@ -94,9 +77,9 @@ def get_ip_data():
                 result[_type] = {_code: [_tmp[3:]]}
     return result
 
+
 def get_as_data():
     result = {}
-    #raw_as = read_url(as_list_url)
     raw_as = read_file(as_list_file)
     for line in raw_as.split('\n'):
         if not line:
@@ -112,6 +95,7 @@ def get_as_data():
         except KeyError:
             result[name] = [asn]
     return result
+
 
 def read_routing_table(as_list):
     result = {}
@@ -143,6 +127,7 @@ def read_routing_table(as_list):
     f.close()
     return result
 
+
 def find_asn_by_name(name_list):
     result = []
     as_data = get_as_data()
@@ -151,6 +136,7 @@ def find_asn_by_name(name_list):
             if str.upper(name) in str.upper(as_name):
                 result += as_info
     return result
+
 
 def find_asn_by_country(country_list, exclude_list):
     result = []
@@ -201,7 +187,8 @@ if __name__ == '__main__':
     if args.name:
         as_list += find_asn_by_name(args.name)
     if args.country or args.exclude:
-        as_list_by_country, as_exclude = find_asn_by_country(args.country, args.exclude)
+        as_list_by_country, as_exclude = find_asn_by_country(
+            args.country, args.exclude)
         as_list += as_list_by_country
 
     # filter excludes
@@ -219,4 +206,5 @@ if __name__ == '__main__':
     stdout, stderr = p.communicate('\n'.join(detailed_nets).encode('utf-8'))
     if stderr and stderr != '':
         print(stderr)
-    write_file(args.output, data=gen_routing_items(args, stdout.decode('utf-8').split('\n')).encode('utf-8'))
+    write_file(args.output, data=gen_routing_items(
+        args, stdout.decode('utf-8').split('\n')).encode('utf-8'))
