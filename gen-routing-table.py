@@ -176,6 +176,8 @@ protocol static {
 
     route_list = []
     for net in net_list:
+        if not net:
+            continue
         route_list.append(route_template % (net, gateway))
     return config_template % (datetime.datetime.now(), table_name, '\n'.join(route_list))
 
