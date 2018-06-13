@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Generate OSPF routing table configuration for bird
+# Generate static routing table configuration for bird
 
 import argparse
 import datetime
@@ -44,7 +44,7 @@ def parse_opts():
                         help='Country code, to include a whole country/region\'s network')
     parser.add_argument('--exclude', action='append', default=None,
                         help='Country code to exclude from result, this will overwite other filters.')
-    parser.add_argument('--gateway', action='store', default=None,
+    parser.add_argument('--gateway', action='store', required=True,
                         help='Default gateway of internet access.')
     parser.add_argument('--table-name', action='store', default='generated_table',
                         help='Routing table name of generated routes.')
@@ -118,8 +118,8 @@ def read_routing_table(as_list):
             # filter by AS Numbers
             if asn not in as_list:
                 continue
+            # store every network only one time
             try:
-                # store every network only one time
                 result[asn].add(inet)
             except KeyError:
                 result[asn] = set()
@@ -162,10 +162,7 @@ def find_asn_by_country(country_list, exclude_list):
 
 def gen_routing_items(args, net_list):
     table_name = args.table_name
-    if args.gateway:
-        gateway = args.gateway
-    else:
-        raise OSError('No default gateway specified!')
+    gateway = args.gateway
     config_template = '''# Generated at: %s
 protocol static {
   table %s;
@@ -195,8 +192,10 @@ if __name__ == '__main__':
 
     # filter excludes
     for asn in as_exclude:
-        if asn in as_list:
+        try:
             as_list.remove(asn)
+        except:
+            pass
     # remove duplicates
     as_list = list(set(as_list))
 
