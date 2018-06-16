@@ -19,8 +19,12 @@ Then run the script to generate config file, there some arguments that controls 
 
 The `--name`/`--country`/`--asn`/`--exclude` arguments can be used multiple times, to pass more than one values. The `--exclude` argument only accept two-letter country code.
 
+Argument values are case insensitive, except `-o`/`--output` and `--table-name`.
+
+It's possible to write a wrap script to automate the update process.
+
 # License
 
-This script is written for private usage, and no garentee is provided. The code and feature may be update and changed without any notice, or may not be having any future update at all.
+This script is written for private usage, and absolutely no garentee is provided. The code and feature may be updated and changed without any notice, or may not be having any future update at all.
 
 The project is licensed under [GLWTPL](https://github.com/me-shaon/GLWTPL) and wish you a good luck.
