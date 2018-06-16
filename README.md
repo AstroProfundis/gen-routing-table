@@ -1,3 +1,12 @@
+# What's This
+
+This is a simple script that can generate static routing table config file in `bird` format from the global BGP dump.
+
+The propose of this script is to detect and save certain networks (IP blocks) to a special routeing table for futher actions. I'm using it to hijack some specific networks to a encrypted tunnel on my gateway, to bypass a firewall on the default route.
+
+# Usage
+
+Download data files to local.
 ```
 mkdir -p data
 wget -O data/delegated-apnic-latest https://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest
@@ -6,3 +15,12 @@ wget -O data/oix-full-snapshot-latest.dat.bz2 http://archive.routeviews.org/oix-
 cd data
 bzip2 -d oix-full-snapshot-latest.dat.bz2
 ```
+Then run the script to generate config file, there some arguments that controls the filters of ASes, see `-h` for details.
+
+The `--name`/`--country`/`--asn`/`--exclude` arguments can be used multiple times, to pass more than one values. The `--exclude` argument only accept two-letter country code.
+
+# License
+
+This script is written for private usage, and no garentee is provided. The code and feature may be update and changed without any notice, or may not be having any future update at all.
+
+The project is licensed under [GLWTPL](https://github.com/me-shaon/GLWTPL) and wish you a good luck.
