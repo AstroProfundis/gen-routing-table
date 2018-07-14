@@ -48,6 +48,8 @@ def parse_opts():
                         help='Default gateway of internet access.')
     parser.add_argument('--table-name', action='store', default='generated_table',
                         help='Routing table name of generated routes.')
+    parser.add_argument('--version', action='store', type=int, default=1,
+                        help='BIRD version, supported values are 1 or 2.')
     parser.add_argument('-o', '--output', action='store', default='routes.conf',
                         help='Output file name of generated config.')
     return parser.parse_args()
@@ -163,12 +165,22 @@ def find_asn_by_country(country_list, exclude_list):
 def gen_routing_items(args, net_list):
     table_name = args.table_name
     gateway = args.gateway
-    config_template = '''# Generated at: %s
+    config_template_v1 = '''# Generated at: %s
 protocol static {
   table %s;
 %s
 }
 '''
+    config_template_v2 = '''# Generated at: %s
+protocol static {
+  ipv4 { table %s; };
+%s
+}
+'''
+    if args.version == 2:
+        config_template = config_template_v2
+    else:
+        config_template = config_template_v1
     route_template = '  route %s via %s;'
 
     route_list = []
