@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 
 # the location of raw data
 ip_list_file = 'data/delegated-apnic-latest'
-as_list_file = 'data/asn.txt'
+as_list_file = 'data/geoip.csv'
 routes_file = 'data/oix-full-snapshot-latest.dat'
 
 
@@ -81,17 +81,21 @@ def get_ip_data():
 
 
 def get_as_data():
+    asn_set = set()
     result = {}
     raw_as = read_file(as_list_file)
     for line in raw_as.split('\n'):
         if not line:
             continue
-        _tmp = line.split()
+        _tmp = line.split(',')
         # not starting with an ASN
-        if not _tmp[0].isdigit():
+        if not _tmp[1].isdigit():
             continue
-        asn = _tmp[0]      # AS Number
-        name = _tmp[1]     # AS Name
+        asn = _tmp[1]      # AS Number
+        name = _tmp[2]     # AS Name
+        if asn in asn_set:
+            continue
+        asn_set.add(asn)
         try:
             result[name].append(asn)
         except KeyError:
