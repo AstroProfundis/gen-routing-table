@@ -44,6 +44,8 @@ def parse_opts():
                         help='Country code, to include a whole country/region\'s network')
     parser.add_argument('--exclude', action='append', default=None,
                         help='Country code to exclude from result, this will overwite other filters.')
+    parser.add_argument('--exclude-as', action='append', default=None,
+                        help='ASN(s) to exclude from result, this will overwite other filters.')
     parser.add_argument('--gateway', action='store', required=True,
                         help='Default gateway of internet access.')
     parser.add_argument('--table-name', action='store', default='generated_table',
@@ -68,7 +70,7 @@ def get_ip_data():
         _type = _tmp[2]  # record type
         if _type != 'asn':
             # skip ip blocks, as we don't need them now, but the looking table
-            # structure is keeped in case we'll use it in the future
+            # structure is kept in case we'll use it in the future
             continue
         try:
             result[_type][_code].append(_tmp[3:])
@@ -207,9 +209,16 @@ if __name__ == '__main__':
         as_list += as_list_by_country
 
     # filter excludes
-    for asn in as_exclude:
+    for asn in as_exclude: # calculated exlucde list from country code
         try:
             as_list.remove(asn)
+        except:
+            pass
+    for asn in args.exclude_as: # exclude list from args
+        print("removing asn %s" % asn)
+        try:
+            as_list.remove(asn)
+            print("removed asn %s" % asn)
         except:
             pass
     # remove duplicates
