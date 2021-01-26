@@ -171,13 +171,13 @@ def find_asn_by_country(country_list, exclude_list):
 def gen_routing_items(args, net_list):
     table_name = args.table_name
     gateway = args.gateway
-    config_template_v1 = '''# Generated at: %s
+    config_template_v1 = '''# Generated for %d routes at: %s
 protocol static {
   table %s;
 %s
 }
 '''
-    config_template_v2 = '''# Generated at: %s
+    config_template_v2 = '''# Generated for %d routes at: %s
 protocol static {
   ipv4 { table %s; };
 %s
@@ -194,7 +194,7 @@ protocol static {
         if not net:
             continue
         route_list.append(route_template % (net, gateway))
-    return config_template % (datetime.datetime.now(), table_name, '\n'.join(route_list))
+    return config_template % (len(net_list), datetime.datetime.now(), table_name, '\n'.join(route_list))
 
 
 if __name__ == '__main__':
@@ -207,6 +207,11 @@ if __name__ == '__main__':
         as_list_by_country, as_exclude = find_asn_by_country(
             args.country, args.exclude)
         as_list += as_list_by_country
+    if args.asn:
+        for asn in args.asn:
+            if asn in as_list:
+                continue
+            as_list.append(asn)
 
     # filter excludes
     for asn in as_exclude: # calculated exlucde list from country code
